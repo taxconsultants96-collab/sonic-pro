@@ -11,6 +11,7 @@
             --glow: rgba(139, 92, 246, 0.6); 
             --accent: #a78bfa;
             --text: #f8fafc; 
+            --bg-dark: #020617;
         }
         
         html, body { 
@@ -22,11 +23,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
+            background: radial-gradient(circle at center, #1e1b4b 0%, var(--bg-dark) 100%);
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             color: var(--text);
         }
 
+        /* The Main Siri Orb */
         .orb-container {
             position: relative; 
             width: 80vw; 
@@ -44,6 +46,7 @@
             justify-content: center;
             box-shadow: 0 0 100px rgba(0, 0, 0, 0.5);
             transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10;
         }
 
         body.moving .orb-container {
@@ -64,14 +67,16 @@
         
         #unit { font-size: 12px; letter-spacing: 4px; opacity: 0.4; margin-top: 5px; }
         #status { font-size: 9px; opacity: 0.3; position: absolute; top: 45px; letter-spacing: 2px; text-transform: uppercase; }
+        #timer { font-size: 16px; font-weight: 300; margin-top: 15px; letter-spacing: 2px; color: var(--accent); font-family: monospace; }
 
+        /* Controls Area */
         .controls {
             position: absolute;
-            bottom: -150px;
+            bottom: -160px;
             width: 100%;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
         }
 
         .btn {
@@ -90,23 +95,49 @@
         .btn-start { background: var(--accent); border: none; font-weight: bold; }
         .btn-stop { background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #ef4444; }
 
-        .slider-wrap { width: 90%; margin: 10px auto; }
+        .slider-wrap { width: 90%; margin: 5px auto; }
         input[type=range] { width: 100%; accent-color: var(--accent); opacity: 0.7; }
+
+        /* Summary Overlay */
+        #summaryOverlay {
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            background: rgba(2, 6, 23, 0.98); 
+            z-index: 100; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center; 
+            backdrop-filter: blur(20px);
+        }
+
+        #statsContent p { margin: 5px 0; }
+        .stat-label { font-size: 11px; opacity: 0.5; letter-spacing: 2px; text-transform: uppercase; margin-top: 15px !important; }
+        .stat-value { font-size: 28px; font-weight: 200; color: var(--accent); }
 
         @media (min-width: 500px) { #speed { font-size: 110px; } }
     </style>
 </head>
 <body>
 
+    <div id="summaryOverlay">
+        <h2 style="font-weight: 200; letter-spacing: 6px; margin-bottom: 30px;">TRIP REPORT</h2>
+        <div id="statsContent"></div>
+        <button class="btn" style="width: 200px; margin-top: 40px; border: 1px solid var(--accent);" onclick="closeSummary()">Close Report</button>
+    </div>
+
     <div id="mainOrb" class="orb-container">
-        <div id="status">Ready</div>
+        <div id="status">System Offline</div>
         <div id="speed">0</div>
         <div id="unit">KM/H</div>
+        <div id="timer">00:00</div>
 
         <div class="controls">
             <button id="startBtn" class="btn btn-start" onclick="initEngine()">Initialize Aura</button>
             <button id="stopBtn" class="btn btn-stop" style="display:none" onclick="stopEngine()">Power Down</button>
-            <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice: ON</button>
+            <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice Guidance: ON</button>
             
             <div class="slider-wrap">
                 <input type="range" id="volume" min="0" max="2.0" step="0.1" value="1.0" oninput="updateMasterVol()">
@@ -117,20 +148,25 @@
     <script>
         let audioCtx, masterGain, harmonics = [], watchId;
         let lastPos, lastTime, lastSpokenSpeed = 0;
-        let voiceEnabled = true;
-        let isShuttingDown = false;
+        let voiceEnabled = true, isShuttingDown = false;
+        
+        // Trip Stats
+        let startTime, timerInterval, tripSpeeds = [], maxSpeed = 0;
 
         async function initEngine() {
             if (isShuttingDown || audioCtx) return;
-
+            
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') await audioCtx.resume();
             
             playSiriPop(true);
 
+            // UI Setup
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'block';
-
+            document.getElementById('status').innerText = "Aura Active";
+            
+            // Audio Nodes
             const compressor = audioCtx.createDynamicsCompressor();
             compressor.threshold.setValueAtTime(-15, audioCtx.currentTime);
             compressor.connect(audioCtx.destination);
@@ -149,7 +185,9 @@
                 return { osc, gain, ratio: r };
             });
 
-            document.getElementById('status').innerText = "Aura Online";
+            // Start Services
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
             startGpsTracking();
             speak("Aura system online.");
         }
@@ -161,86 +199,79 @@
             const now = audioCtx.currentTime;
             const duration = 0.8;
 
+            // Stats Calculation
+            const avgSpeed = tripSpeeds.length > 0 ? Math.round(tripSpeeds.reduce((a, b) => a + b) / tripSpeeds.length) : 0;
+            const totalTime = document.getElementById('timer').innerText;
+
+            // Audio De-spool
             harmonics.forEach(h => {
                 h.osc.frequency.cancelScheduledValues(now);
                 h.osc.frequency.exponentialRampToValueAtTime(50, now + duration);
                 h.gain.gain.linearRampToValueAtTime(0, now + duration);
             });
-
             playSiriPop(false);
 
             setTimeout(() => {
                 if (watchId) navigator.geolocation.clearWatch(watchId);
+                clearInterval(timerInterval);
+                
                 audioCtx.close().then(() => {
                     audioCtx = null;
                     harmonics = [];
                     lastSpokenSpeed = 0;
+                    
+                    // Show Summary
+                    document.getElementById('statsContent').innerHTML = `
+                        <p class="stat-label">Total Duration</p>
+                        <p class="stat-value">${totalTime}</p>
+                        <p class="stat-label">Average Pace</p>
+                        <p class="stat-value">${avgSpeed} <span style="font-size:12px">KM/H</span></p>
+                        <p class="stat-label">Max Speed</p>
+                        <p class="stat-value">${maxSpeed} <span style="font-size:12px">KM/H</span></p>
+                    `;
+                    document.getElementById('summaryOverlay').style.display = 'flex';
+                    
+                    // Reset UI
                     isShuttingDown = false;
-                    document.getElementById('status').innerText = "Offline";
+                    document.getElementById('status').innerText = "System Offline";
                     document.getElementById('startBtn').style.display = 'block';
                     document.getElementById('stopBtn').style.display = 'none';
                     document.getElementById('speed').innerText = "0";
+                    document.getElementById('timer').innerText = "00:00";
                     document.body.classList.remove('moving');
+                    tripSpeeds = [];
+                    maxSpeed = 0;
                 });
             }, duration * 1000);
         }
 
-        function playSiriPop(isStartup) {
-            if (!audioCtx) return;
-            const o1 = audioCtx.createOscillator();
-            const o2 = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            const f1 = isStartup ? 480 : 600;
-            const f2 = isStartup ? 600 : 480;
-
-            o1.frequency.setValueAtTime(f1, audioCtx.currentTime);
-            o2.frequency.setValueAtTime(f2, audioCtx.currentTime);
-            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-            
-            o1.connect(g).connect(audioCtx.destination);
-            o2.connect(g).connect(audioCtx.destination);
-            o1.start(); o2.start();
-            o1.stop(audioCtx.currentTime + 0.4); o2.stop(audioCtx.currentTime + 0.4);
-        }
-
-        function toggleVoice() {
-            voiceEnabled = !voiceEnabled;
-            document.getElementById('voiceToggle').innerText = `Voice: ${voiceEnabled ? 'ON' : 'OFF'}`;
-        }
-
-        function speak(text) {
-            if (!voiceEnabled) return;
-            window.speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.rate = 1.1;
-            msg.pitch = 1.1;
-            window.speechSynthesis.speak(msg);
-        }
-
-        function startGpsTracking() {
-            watchId = navigator.geolocation.watchPosition(handleMotion, null, { enableHighAccuracy: true });
+        function updateTimer() {
+            const elapsed = Date.now() - startTime;
+            const m = String(Math.floor((elapsed / 60000) % 60)).padStart(2, '0');
+            const s = String(Math.floor((elapsed / 1000) % 60)).padStart(2, '0');
+            document.getElementById('timer').innerText = `${m}:${s}`;
         }
 
         function handleMotion(pos) {
-            const speed = pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos);
-            const s = Math.round(Math.max(0, speed));
+            const rawSpeed = pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos);
+            const s = Math.round(Math.max(0, rawSpeed));
             
             document.getElementById('speed').innerText = s;
             
             if (s > 2) {
                 document.body.classList.add('moving');
+                tripSpeeds.push(s);
+                if (s > maxSpeed) maxSpeed = s;
             } else {
                 document.body.classList.remove('moving');
             }
 
+            // Voice logic (Every 10 units)
             const threshold = Math.floor(s / 10) * 10;
             if (threshold > 0 && threshold !== lastSpokenSpeed && s >= threshold) {
-                speak(`${threshold} kilometers per hour`);
+                speak(`${threshold}`);
                 lastSpokenSpeed = threshold;
-            } else if (s === 0) {
-                lastSpokenSpeed = 0;
-            }
+            } else if (s === 0) { lastSpokenSpeed = 0; }
 
             updateSounds(s);
         }
@@ -256,6 +287,17 @@
             });
         }
 
+        function playSiriPop(isStartup) {
+            if (!audioCtx) return;
+            const o1 = audioCtx.createOscillator(), o2 = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o1.frequency.setValueAtTime(isStartup ? 480 : 600, audioCtx.currentTime);
+            o2.frequency.setValueAtTime(isStartup ? 600 : 480, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            o1.connect(g).connect(audioCtx.destination); o2.connect(g).connect(audioCtx.destination);
+            o1.start(); o2.start(); o1.stop(audioCtx.currentTime + 0.4); o2.stop(audioCtx.currentTime + 0.4);
+        }
+
         function calculateSpeed(pos) {
             const now = pos.timestamp;
             if (lastPos && lastTime) {
@@ -264,21 +306,21 @@
                 lastPos = pos.coords; lastTime = now;
                 return d / t;
             }
-            lastPos = pos.coords; lastTime = now;
-            return 0;
+            lastPos = pos.coords; lastTime = now; return 0;
         }
 
         function getDistance(lat1, lon1, lat2, lon2) {
             const R = 6371;
-            const dLat = (lat2-lat1) * Math.PI/180;
-            const dLon = (lon2-lon1) * Math.PI/180;
+            const dLat = (lat2-lat1) * Math.PI/180, dLon = (lon2-lon1) * Math.PI/180;
             const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function updateMasterVol() {
-            if (masterGain) masterGain.gain.value = document.getElementById('volume').value;
-        }
+        function toggleVoice() { voiceEnabled = !voiceEnabled; document.getElementById('voiceToggle').innerText = `Voice: ${voiceEnabled ? 'ON' : 'OFF'}`; }
+        function speak(text) { if (!voiceEnabled) return; window.speechSynthesis.cancel(); const msg = new SpeechSynthesisUtterance(text); msg.rate = 1.2; window.speechSynthesis.speak(msg); }
+        function updateMasterVol() { if (masterGain) masterGain.gain.value = document.getElementById('volume').value; }
+        function startGpsTracking() { watchId = navigator.geolocation.watchPosition(handleMotion, null, { enableHighAccuracy: true }); }
+        function closeSummary() { document.getElementById('summaryOverlay').style.display = 'none'; }
     </script>
 </body>
 </html>

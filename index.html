@@ -3,177 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EV Sonic Pro</title>
+    <title>Siri EV Sonic</title>
     <style>
-        :root { --neon-green: #22c55e; --neon-purple: #8b5cf6; --bg-dark: #020617; }
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--bg-dark); color: #f8fafc; margin: 0; padding: 20px; touch-action: manipulation; }
-        .dashboard { border: 2px solid #1e293b; border-radius: 35px; padding: 30px; background: linear-gradient(145deg, #1e293b, #0f172a); max-width: 420px; margin: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.9); }
-        #speed { font-size: 110px; font-weight: 900; color: var(--neon-green); text-shadow: 0 0 25px rgba(34, 197, 94, 0.5); margin: 5px 0; font-variant-numeric: tabular-nums; line-height: 1; }
-        #status { font-size: 11px; color: #64748b; height: 25px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-        .btn { padding: 18px; font-size: 14px; font-weight: bold; color: white; background: #334155; border: none; border-radius: 18px; cursor: pointer; transition: 0.2s; text-transform: uppercase; }
-        .btn-start { background: #3b82f6; grid-column: span 1; }
-        .btn-stop { background: #ef4444; grid-column: span 1; }
-        .btn-sport { border: 2px solid var(--neon-purple); color: var(--neon-purple); grid-column: span 2; }
-        .btn-sport.active { background: var(--neon-purple); color: white; box-shadow: 0 0 25px rgba(139, 92, 246, 0.4); }
-        .btn-turbo { background: linear-gradient(180deg, #f59e0b, #d97706); grid-column: span 2; height: 80px; font-size: 24px; box-shadow: 0 6px 0 #92400e; margin-top: 10px; }
-        .btn-turbo:active { transform: translateY(4px); box-shadow: none; }
-        .slider-box { margin-top: 25px; background: rgba(255,255,255,0.04); padding: 18px; border-radius: 20px; }
-        input[type=range] { width: 100%; accent-color: var(--neon-green); cursor: pointer; }
+        :root { --glow: rgba(139, 92, 246, 0.6); --text: #f8fafc; }
+        body { 
+            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%); 
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex; align-items: center; justify-content: center;
+            height: 100vh; margin: 0; color: var(--text); overflow: hidden;
+        }
+        .orb-container {
+            position: relative; width: 320px; height: 320px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255,255,255,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .moving .orb-container {
+            box-shadow: 0 0 120px var(--glow);
+            transform: scale(1.02);
+        }
+        #speed { 
+            font-size: 100px; font-weight: 200; margin: 0; 
+            letter-spacing: -2px; line-height: 1;
+        }
+        #unit { font-size: 12px; letter-spacing: 4px; opacity: 0.5; margin-top: 10px; }
+        .controls {
+            position: absolute; bottom: -120px; width: 100%;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+        .btn {
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 12px; border-radius: 30px; cursor: pointer;
+            font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+            transition: 0.2s;
+        }
+        .btn:active { background: rgba(255,255,255,0.3); }
+        #status { font-size: 10px; opacity: 0.4; position: absolute; top: 40px; }
+        .slider-wrap { margin-top: 20px; width: 80%; }
+        input[type=range] { width: 100%; accent-color: #a78bfa; opacity: 0.6; }
     </style>
 </head>
 <body>
-    <div class="dashboard">
-        <div id="status">Engine Off</div>
-        <div id="speed">0</div>
-        <div style="font-size: 12px; color: #475569; margin-bottom: 15px;">KILOMETERS PER HOUR</div>
-        
-        <div class="btn-grid">
-            <button class="btn btn-start" onclick="initEngine()">Start Engine</button>
-            <button class="btn btn-stop" onclick="stopEngine()">Kill Switch</button>
-            <button id="sportBtn" class="btn btn-sport" onclick="toggleSport()">Sport Mode: Off</button>
-            <button id="turboBtn" class="btn btn-turbo" 
-                onmousedown="startTurbo()" onmouseup="stopTurbo()" 
-                ontouchstart="startTurbo()" ontouchend="stopTurbo()">BOOST TURBO</button>
-        </div>
 
-        <div class="slider-box">
-            <label style="font-size: 11px; display: block; margin-bottom: 10px; color: #94a3b8;">CABIN LOUDNESS</label>
-            <input type="range" id="volume" min="0" max="2.0" step="0.1" value="1.0" oninput="updateMasterVol()">
+    <div id="mainOrb" class="orb-container">
+        <div id="status">OFFLINE</div>
+        <div id="speed">0</div>
+        <div id="unit">KM/H</div>
+
+        <div class="controls">
+            <button class="btn" onclick="initEngine()">Initialize Aura</button>
+            <div class="slider-wrap">
+                <input type="range" id="volume" min="0" max="1.5" step="0.1" value="0.8" oninput="updateMasterVol()">
+            </div>
+            <button class="btn" style="border:none; opacity:0.5" onclick="location.reload()">Reset</button>
         </div>
     </div>
 
     <script>
-        let audioCtx, mainOsc, subOsc, mainGain, subGain, masterGain, muffler, watchId;
-        let noiseNode, noiseFilter, noiseGain, sportMode = false;
+        let audioCtx, masterGain, harmonics = [], watchId;
         let lastPos, lastTime;
 
         async function initEngine() {
             if (audioCtx) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
-            // 1. DYNAMICS COMPRESSOR (Prevents speaker clipping at 2.0 volume)
+            // Siri "Startup" Chime
+            playSiriPop();
+
             const compressor = audioCtx.createDynamicsCompressor();
             compressor.threshold.setValueAtTime(-15, audioCtx.currentTime);
-            compressor.knee.setValueAtTime(30, audioCtx.currentTime);
             compressor.connect(audioCtx.destination);
 
             masterGain = audioCtx.createGain();
             masterGain.gain.value = document.getElementById('volume').value;
             masterGain.connect(compressor);
 
-            // 2. MUFFLER (Low Pass Filter for realistic depth)
-            muffler = audioCtx.createBiquadFilter();
-            muffler.type = 'lowpass';
-            muffler.frequency.value = 800;
-            muffler.connect(masterGain);
+            // Create Harmonic Stack (The Siri Hum)
+            const ratios = [1, 1.5, 2.0, 3.0];
+            ratios.forEach(r => {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.connect(gain).connect(masterGain);
+                osc.start();
+                harmonics.push({ osc, gain, ratio: r });
+            });
 
-            // 3. ENGINE GROWL (Sawtooth)
-            mainOsc = audioCtx.createOscillator();
-            mainOsc.type = 'sawtooth';
-            mainGain = audioCtx.createGain();
-            mainGain.gain.value = 0;
-            mainOsc.connect(mainGain).connect(muffler);
-
-            // 4. SUB-BASS (The Rumble)
-            subOsc = audioCtx.createOscillator();
-            subOsc.type = 'sine';
-            subGain = audioCtx.createGain();
-            subGain.gain.value = 0;
-            subOsc.connect(subGain).connect(muffler);
-
-            // 5. TURBO TURBINE (High-pitched noise)
-            const bufferSize = audioCtx.sampleRate * 2;
-            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const output = noiseBuffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
-            
-            noiseNode = audioCtx.createBufferSource();
-            noiseNode.buffer = noiseBuffer;
-            noiseNode.loop = true;
-            noiseFilter = audioCtx.createBiquadFilter();
-            noiseFilter.type = 'bandpass';
-            noiseFilter.frequency.value = 800;
-            noiseFilter.Q.value = 20;
-            noiseGain = audioCtx.createGain();
-            noiseGain.gain.value = 0;
-            noiseNode.connect(noiseFilter).connect(noiseGain).connect(masterGain);
-
-            mainOsc.start();
-            subOsc.start();
-            noiseNode.start();
-
-            document.getElementById('status').innerText = "SYSTEM: READY TO DRIVE";
+            document.getElementById('status').innerText = "AURA ACTIVE";
             startGpsTracking();
         }
 
-        function toggleSport() {
-            sportMode = !sportMode;
-            const btn = document.getElementById('sportBtn');
-            btn.classList.toggle('active');
-            btn.innerText = sportMode ? "Sport Mode: Active" : "Sport Mode: Off";
+        function playSiriPop() {
+            const o1 = audioCtx.createOscillator();
+            const o2 = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o1.frequency.setValueAtTime(480, audioCtx.currentTime);
+            o2.frequency.setValueAtTime(600, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            o1.connect(g).connect(audioCtx.destination);
+            o2.connect(g).connect(audioCtx.destination);
+            o1.start(); o2.start();
+            o1.stop(audioCtx.currentTime + 0.3); o2.stop(audioCtx.currentTime + 0.3);
         }
 
         function startGpsTracking() {
-            watchId = navigator.geolocation.watchPosition(handleMotion, (err) => {
-                document.getElementById('status').innerText = "GPS Error: " + err.message;
-            }, { enableHighAccuracy: true });
+            watchId = navigator.geolocation.watchPosition(handleMotion, null, { enableHighAccuracy: true });
         }
 
         function handleMotion(pos) {
-            const coords = pos.coords;
-            const now = pos.timestamp;
-            let speed = 0;
-
-            if (lastPos && lastTime) {
-                const d = getDistance(lastPos.latitude, lastPos.longitude, coords.latitude, coords.longitude);
-                const t = (now - lastTime) / 3600000;
-                speed = d / t;
-            }
-            if (coords.speed !== null && coords.speed > 0) speed = coords.speed * 3.6;
-            if (speed < 1 || speed > 220) speed = 0;
-
-            document.getElementById('speed').innerText = Math.round(speed);
-            updateSounds(speed);
-            lastPos = coords;
-            lastTime = now;
+            const speed = pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos);
+            const s = Math.round(Math.max(0, speed));
+            
+            document.getElementById('speed').innerText = s;
+            document.getElementById('mainOrb').className = s > 1 ? "orb-container moving" : "orb-container";
+            
+            updateSounds(s);
         }
 
         function updateSounds(speed) {
             if (!audioCtx) return;
             const now = audioCtx.currentTime;
             
-            const multiplier = sportMode ? 2.5 : 1.0;
-            const baseFreq = (65 + (speed * 7)) * multiplier;
+            // Modern EVs have a base hum around 180Hz
+            const baseFreq = 180 + (speed * 4);
             
-            mainOsc.frequency.setTargetAtTime(baseFreq, now, 0.1);
-            subOsc.frequency.setTargetAtTime(baseFreq / 2, now, 0.1);
-            
-            // Volume & Muffler Logic
-            const vol = speed === 0 ? 0.2 : Math.min(0.3 + (speed / 20), 1.0);
-            mainGain.gain.setTargetAtTime(vol, now, 0.1);
-            subGain.gain.setTargetAtTime(vol * 1.3, now, 0.1);
-            
-            // "Open" the muffler as you go faster
-            muffler.frequency.setTargetAtTime(800 + (speed * 40), now, 0.1);
+            harmonics.forEach(h => {
+                // Smooth glide (0.3s) for the liquid feel
+                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, now, 0.3);
+                
+                // Volume becomes "brighter" (more harmonics) as you go faster
+                let v = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 60), 0.4);
+                h.gain.gain.setTargetAtTime(v / h.ratio, now, 0.3);
+            });
         }
 
-        function startTurbo() {
-            if (!audioCtx) return;
-            const now = audioCtx.currentTime;
-            noiseFilter.frequency.exponentialRampToValueAtTime(8000, now + 1.5);
-            noiseGain.gain.linearRampToValueAtTime(0.7, now + 0.5);
-        }
-
-        function stopTurbo() {
-            if (!audioCtx) return;
-            const now = audioCtx.currentTime;
-            noiseFilter.frequency.exponentialRampToValueAtTime(800, now + 2.0);
-            noiseGain.gain.linearRampToValueAtTime(0, now + 1.2);
-        }
-
-        function updateMasterVol() {
-            if (masterGain) masterGain.gain.value = document.getElementById('volume').value;
+        function calculateSpeed(pos) {
+            const now = pos.timestamp;
+            if (lastPos && lastTime) {
+                const d = getDistance(lastPos.latitude, lastPos.longitude, pos.coords.latitude, pos.coords.longitude);
+                const t = (now - lastTime) / 3600000;
+                lastPos = pos.coords; lastTime = now;
+                return d / t;
+            }
+            lastPos = pos.coords; lastTime = now;
+            return 0;
         }
 
         function getDistance(lat1, lon1, lat2, lon2) {
@@ -184,12 +163,8 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function stopEngine() {
-            if (audioCtx) audioCtx.close();
-            audioCtx = null;
-            navigator.geolocation.clearWatch(watchId);
-            document.getElementById('status').innerText = "Engine Off";
-            document.getElementById('speed').innerText = "0";
+        function updateMasterVol() {
+            if (masterGain) masterGain.gain.value = document.getElementById('volume').value;
         }
     </script>
 </body>

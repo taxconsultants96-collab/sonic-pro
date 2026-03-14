@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EV Sonic Professional</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+        .dashboard { border: 2px solid #334155; border-radius: 20px; padding: 30px; background: #1e293b; max-width: 400px; margin: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        #speed { font-size: 80px; font-weight: bold; color: #22c55e; margin: 10px 0; line-height: 1; }
+        #status { font-size: 14px; color: #94a3b8; margin-bottom: 20px; height: 35px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+        .btn { padding: 12px 20px; font-size: 14px; font-weight: bold; color: white; background: #3b82f6; border: none; border-radius: 12px; cursor: pointer; margin: 5px; transition: 0.2s; min-width: 100px; }
+        .btn-stop { background: #ef4444; }
+        .btn-alt { background: #64748b; }
+        .active-rev { background: #f87171 !important; box-shadow: 0 0 15px #ef4444; }
+        .active-sport { background: #8b5cf6 !important; box-shadow: 0 0 15px #8b5cf6; }
+        .mode-indicator { margin-top: 20px; padding: 10px; border-radius: 10px; font-weight: bold; letter-spacing: 1px; }
+        .forward { background: #065f46; color: #34d399; }
+        .reverse-mode { background: #7f1d1d; color: #fecaca; }
+        .slider-container { margin-top: 25px; background: #334155; padding: 15px; border-radius: 15px; }
+        input[type=range] { width: 100%; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h2>EV SONIC PRO</h2>
+        <div id="status">READY TO INITIALIZE</div>
+        <div id="speed">0</div>
+        <div style="font-size: 12px; color: #64748b; margin-bottom: 10px;">KM/H</div>
+        
+        <div id="mode" class="mode-indicator" style="visibility: hidden;">NEUTRAL</div>
+        
+        <div style="margin-top: 20px;">
+            <button class="btn" onclick="initEngine()">START</button>
+            <button class="btn btn-stop" onclick="stopEngine()">STOP</button>
+            <br>
+            <button id="revBtn" class="btn btn-alt" onclick="toggleReverse()">REVERSE</button>
+            <button id="sportBtn" class="btn btn-alt" onclick="toggleSportMode()">SPORT</button>
+        </div>
+
+        <div class="slider-container">
+            <label style="font-size: 11px; display: block; margin-bottom: 8px;">MASTER VOLUME</label>
+            <input type="range" id="volume" min="0" max="1" step="0.1" value="0.5" oninput="updateMasterVol()">
+        </div>
+    </div>
+
+    <script>
+        let audioCtx, osc, gain, masterGain, lfo, lfoGain, watchId;
+        let isReverse = false, isSportMode = false, isMoving = false;
+        let lastPos = null, lastTime = null, stopTimer = null;
+        let reverseInterval;
+
+        async function initEngine() {
+            // 1. Request Motion Permissions (Specifically for iOS 13+)
+            if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === 'function') {
+                try {
+                    const permissionState = await DeviceMotionEvent.requestPermission();
+                    if (permissionState !== 'granted') {
+                        alert("Motion permission is required for the battery saver to work.");
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Motion Permission Error:", e);
+                }
+            }
+
+            // 2. Start Audio Context
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+            // 3. Force a GPS prompt immediately to test connection
+            document.getElementById('status').innerText = "REQUESTING GPS PERMISSION...";
+            
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    document.getElementById('status').innerText = "CONNECTED! WAITING FOR MOTION...";
+                    setupAudioNodes();
+                    startGpsTracking();
+                    window.addEventListener('devicemotion', handleAccelerometer);
+                    document.getElementById('mode').style.visibility = "visible";
+                    updateAcoustics(0);
+                },
+                (err) => {
+                    document.getElementById('status').innerText = "GPS Error: " + err.message;
+                    alert("GPS access denied. Ensure you are on HTTPS and location is enabled.");
+                },
+                { enableHighAccuracy: true }
+            );
+        }
+
+        function setupAudioNodes() {
+            if (osc) return; // Prevent double setup
+            
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = document.getElementById('volume').value;
+            masterGain.connect(audioCtx.destination);
+
+            osc = audioCtx.createOscillator();
+            gain = audioCtx.createGain();
+            osc.type = isSportMode ? 'sawtooth' : 'triangle'; 
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+            lfo = audioCtx.createOscillator();
+            lfoGain = audioCtx.createGain();
+            lfo.frequency.value = isSportMode ? 8 : 5; 
+            lfoGain.gain.value = isSportMode ? 20 : 10; 
+            
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
+            osc.connect(gain).connect(masterGain);
+            
+            osc.start();
+            lfo.start();
+        }
+
+        // --- SENSOR FUSION & BATTERY LOGIC ---
+        function handleAccelerometer(event) {
+            let acc = event.accelerationIncludingGravity;
+            if (!acc || !acc.x) return;
+            let magnitude = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+            
+            if (magnitude > 11.5) { // If car vibrates or phone moves
+                if (!isMoving) {
+                    isMoving = true;
+                    document.getElementById('status').innerText = "ACTIVE: SENSORS RUNNING";
+                    startGpsTracking();
+                }
+                resetStopTimer();
+            }
+        }
+
+        function resetStopTimer() {
+            clearTimeout(stopTimer);
+            stopTimer = setTimeout(() => {
+                isMoving = false;
+                stopGpsTracking();
+                document.getElementById('status').innerText = "STANDBY: BATTERY SAVER ON";
+            }, 30000); // Sleep sensors after 30s of stillness
+        }
+
+        function startGpsTracking() {
+            if (watchId) return;
+            watchId = navigator.geolocation.watchPosition(handleMotion, null, { enableHighAccuracy: true });
+        }
+
+        function stopGpsTracking() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+        }
+
+        function handleMotion(pos) {
+            const coords = pos.coords;
+            const currentTime = pos.timestamp;
+            let finalSpeed = 0;
+
+            if (lastPos && lastTime) {
+                const timeDiff = (currentTime - lastTime) / 3600000;
+                const distance = getDistance(lastPos.latitude, lastPos.longitude, coords.latitude, coords.longitude);
+                let calculatedSpeed = distance / timeDiff;
+
+                finalSpeed = (coords.speed !== null && coords.speed > 0) ? coords.speed * 3.6 : calculatedSpeed;
+            }
+
+            if (finalSpeed < 0.8 || finalSpeed > 160) finalSpeed = 0;
+            document.getElementById('speed').innerText = Math.round(finalSpeed);
+            updateAcoustics(finalSpeed);
+
+            lastPos = coords;
+            lastTime = currentTime;
+        }
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        // --- AUDIO ENGINE ---
+        function updateAcoustics(speed) {
+            const modeDiv = document.getElementById('mode');
+            if (!audioCtx || !osc) return;
+
+            if (isReverse) {
+                modeDiv.innerText = "REVERSE";
+                modeDiv.className = "mode-indicator reverse-mode";
+                return; 
+            }
+
+            if (speed === 0) {
+                modeDiv.innerText = "IDLE";
+                modeDiv.className = "mode-indicator";
+                setSound(150, 0.15);
+            } else if (speed > 0 && speed < 25) {
+                modeDiv.innerText = "DRIVE";
+                modeDiv.className = "mode-indicator forward";
+                setSound(150 + (speed * 12), 0.4);
+            } else {
+                modeDiv.innerText = "CRUISING";
+                modeDiv.className = "mode-indicator";
+                setSound(400, 0); // Auto-mute
+            }
+        }
+
+        function setSound(freq, vol) {
+            osc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.1);
+            gain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.1);
+        }
+
+        function updateMasterVol() {
+            if (masterGain) masterGain.gain.setTargetAtTime(document.getElementById('volume').value, audioCtx.currentTime, 0.05);
+        }
+
+        function toggleSportMode() {
+            isSportMode = !isSportMode;
+            document.getElementById('sportBtn').classList.toggle('active-sport');
+            if (osc) {
+                osc.type = isSportMode ? 'sawtooth' : 'triangle';
+                lfo.frequency.value = isSportMode ? 8 : 5;
+                lfoGain.gain.value = isSportMode ? 25 : 10;
+            }
+        }
+
+        function toggleReverse() {
+            isReverse = !isReverse;
+            document.getElementById('revBtn').classList.toggle('active-rev');
+            if (isReverse) {
+                reverseInterval = setInterval(() => {
+                    if (!audioCtx) return;
+                    gain.gain.setTargetAtTime(0.5, audioCtx.currentTime, 0.05);
+                    setTimeout(() => { if (gain) gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05); }, 300);
+                }, 700);
+            } else {
+                clearInterval(reverseInterval);
+                updateAcoustics(0);
+            }
+        }
+
+        function stopEngine() {
+            if (audioCtx) {
+                clearInterval(reverseInterval);
+                masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+                setTimeout(() => {
+                    audioCtx.close();
+                    audioCtx = null;
+                    osc = null;
+                    document.getElementById('status').innerText = "SYSTEM OFFLINE";
+                    document.getElementById('mode').style.visibility = "hidden";
+                }, 150);
+            }
+            stopGpsTracking();
+            window.removeEventListener('devicemotion', handleAccelerometer);
+        }
+    </script>
+</body>
+</html>

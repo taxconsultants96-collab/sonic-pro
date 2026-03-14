@@ -89,30 +89,45 @@
             );
         }
 
-        function setupAudioNodes() {
-            if (osc) return; // Prevent double setup
-            
-            masterGain = audioCtx.createGain();
-            masterGain.gain.value = document.getElementById('volume').value;
-            masterGain.connect(audioCtx.destination);
+       function setupAudioNodes() {
+    if (osc) return; 
+    
+    // Master Gain
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = document.getElementById('volume').value;
 
-            osc = audioCtx.createOscillator();
-            gain = audioCtx.createGain();
-            osc.type = isSportMode ? 'sawtooth' : 'triangle'; 
-            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    // LOUDNESS COMPRESSOR (The Magic Fix)
+    const compressor = audioCtx.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-24, audioCtx.currentTime);
+    compressor.knee.setValueAtTime(40, audioCtx.currentTime);
+    compressor.ratio.setValueAtTime(12, audioCtx.currentTime);
+    compressor.attack.setValueAtTime(0, audioCtx.currentTime);
+    compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
 
-            lfo = audioCtx.createOscillator();
-            lfoGain = audioCtx.createGain();
-            lfo.frequency.value = isSportMode ? 8 : 5; 
-            lfoGain.gain.value = isSportMode ? 20 : 10; 
-            
-            lfo.connect(lfoGain);
-            lfoGain.connect(osc.frequency);
-            osc.connect(gain).connect(masterGain);
-            
-            osc.start();
-            lfo.start();
-        }
+    // Route: Osc -> Gain -> Compressor -> Master -> Speakers
+    osc = audioCtx.createOscillator();
+    gain = audioCtx.createGain();
+    
+    // Switch to Sawtooth for better real-life audibility
+    osc.type = 'sawtooth'; 
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+    lfo = audioCtx.createOscillator();
+    lfoGain = audioCtx.createGain();
+    lfo.frequency.value = isSportMode ? 10 : 6; 
+    lfoGain.gain.value = isSportMode ? 35 : 15; 
+    
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    
+    osc.connect(gain);
+    gain.connect(compressor);
+    compressor.connect(masterGain);
+    masterGain.connect(audioCtx.destination);
+    
+    osc.start();
+    lfo.start();
+}
 
         // --- SENSOR FUSION & BATTERY LOGIC ---
         function handleAccelerometer(event) {

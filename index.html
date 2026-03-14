@@ -1,191 +1,84 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Siri EV Sonic + Voice</title>
-    <style>
-        :root { --glow: rgba(139, 92, 246, 0.6); --text: #f8fafc; }
-        body { 
-            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%); 
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            display: flex; align-items: center; justify-content: center;
-            height: 100vh; margin: 0; color: var(--text); overflow: hidden;
-        }
-        .orb-container {
-            position: relative; width: 320px; height: 320px;
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255,255,255,0.05);
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .moving .orb-container {
-            box-shadow: 0 0 120px var(--glow);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-        }
-        #speed { 
-            font-size: 100px; font-weight: 200; margin: 0; 
-            letter-spacing: -2px; line-height: 1;
-        }
-        #unit { font-size: 10px; letter-spacing: 4px; opacity: 0.5; margin-top: 10px; }
-        .controls {
-            position: absolute; bottom: -140px; width: 100%;
-            display: flex; flex-direction: column; gap: 12px;
-        }
-        .btn {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            color: white; padding: 14px; border-radius: 30px; cursor: pointer;
-            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
-            transition: 0.2s;
-        }
-        .btn-active { background: var(--glow); border: none; }
-        #status { font-size: 9px; opacity: 0.4; position: absolute; top: 45px; letter-spacing: 1px; }
-        .slider-wrap { margin-top: 10px; }
-        input[type=range] { width: 100%; accent-color: #a78bfa; opacity: 0.6; }
-    </style>
-</head>
-<body>
-
-    <div id="mainOrb" class="orb-container">
-        <div id="status">OFFLINE</div>
-        <div id="speed">0</div>
-        <div id="unit">KM/H</div>
-
-        <div class="controls">
-            <button id="startBtn" class="btn btn-active" onclick="initEngine()">Initialize Aura</button>
-            <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice Guidance: ON</button>
-            <div class="slider-wrap">
-                <input type="range" id="volume" min="0" max="1.5" step="0.1" value="0.8" oninput="updateMasterVol()">
-            </div>
-        </div>
+<div class="controls">
+    <div id="actionRow" style="display: flex; gap: 10px;">
+        <button id="startBtn" class="btn btn-active" style="flex: 2;" onclick="initEngine()">Initialize Aura</button>
+        <button id="stopBtn" class="btn" style="flex: 1; display: none; background: rgba(239, 68, 68, 0.2); border-color: #ef4444;" onclick="stopEngine()">Off</button>
     </div>
+    <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice Guidance: ON</button>
+    <div class="slider-wrap">
+        <input type="range" id="volume" min="0" max="1.5" step="0.1" value="0.8" oninput="updateMasterVol()">
+    </div>
+</div>
 
-    <script>
-        let audioCtx, masterGain, harmonics = [], watchId;
-        let lastPos, lastTime, lastSpokenSpeed = 0;
-        let voiceEnabled = true;
+<script>
+    // ... (keep previous variables)
 
-        async function initEngine() {
-            if (audioCtx) return;
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            playSiriPop();
-            document.getElementById('startBtn').style.display = 'none';
+    async function initEngine() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        playSiriPop(true); // Startup sound
+        
+        // UI Updates
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'block';
 
-            const compressor = audioCtx.createDynamicsCompressor();
-            compressor.threshold.setValueAtTime(-15, audioCtx.currentTime);
-            compressor.connect(audioCtx.destination);
+        // ... (rest of your existing init code)
+        
+        startGpsTracking();
+        speak("Aura system online.");
+    }
 
-            masterGain = audioCtx.createGain();
-            masterGain.gain.value = document.getElementById('volume').value;
-            masterGain.connect(compressor);
+    function stopEngine() {
+        if (!audioCtx) return;
 
-            const ratios = [1, 1.5, 2.0, 3.0];
-            ratios.forEach(r => {
-                let osc = audioCtx.createOscillator();
-                let gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.connect(gain).connect(masterGain);
-                osc.start();
-                harmonics.push({ osc, gain, ratio: r });
+        const now = audioCtx.currentTime;
+        const duration = 0.8; // Seconds for the power-down effect
+
+        // 1. "De-spool" effect: Slide pitch down and fade out
+        harmonics.forEach(h => {
+            h.osc.frequency.exponentialRampToValueAtTime(50, now + duration);
+            h.gain.gain.linearRampToValueAtTime(0, now + duration);
+        });
+
+        // 2. Play Power-down chime
+        playSiriPop(false); 
+
+        // 3. Clean up after the sound finishes
+        setTimeout(() => {
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            audioCtx.close().then(() => {
+                audioCtx = null;
+                harmonics = [];
+                document.getElementById('status').innerText = "SYSTEM OFFLINE";
+                document.getElementById('startBtn').style.display = 'block';
+                document.getElementById('stopBtn').style.display = 'none';
+                document.getElementById('speed').innerText = "0";
+                document.body.className = "";
             });
+        }, duration * 1000);
+    }
 
-            document.getElementById('status').innerText = "AURA ACTIVE";
-            startGpsTracking();
-            speak("System initialized. Driving mode active.");
-        }
+    function playSiriPop(isStartup) {
+        const o1 = audioCtx.createOscillator();
+        const o2 = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        
+        // Startup is low to high, Shutdown is high to low
+        const freq1 = isStartup ? 480 : 600;
+        const freq2 = isStartup ? 600 : 480;
 
-        function toggleVoice() {
-            voiceEnabled = !voiceEnabled;
-            document.getElementById('voiceToggle').innerText = `Voice Guidance: ${voiceEnabled ? 'ON' : 'OFF'}`;
-        }
-
-        function speak(text) {
-            if (!voiceEnabled) return;
-            // Cancel any current speech to prevent overlapping
-            window.speechSynthesis.cancel();
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.rate = 1.1; // Slightly faster for a modern feel
-            msg.pitch = 1.2; // Higher pitch for the Siri vibe
-            window.speechSynthesis.speak(msg);
-        }
-
-        function playSiriPop() {
-            const o1 = audioCtx.createOscillator();
-            const o2 = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            o1.frequency.setValueAtTime(480, audioCtx.currentTime);
-            o2.frequency.setValueAtTime(600, audioCtx.currentTime);
-            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-            o1.connect(g).connect(audioCtx.destination);
-            o2.connect(g).connect(audioCtx.destination);
-            o1.start(); o2.start();
-            o1.stop(audioCtx.currentTime + 0.3); o2.stop(audioCtx.currentTime + 0.3);
-        }
-
-        function startGpsTracking() {
-            watchId = navigator.geolocation.watchPosition(handleMotion, null, { enableHighAccuracy: true });
-        }
-
-        function handleMotion(pos) {
-            const rawSpeed = pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos);
-            const s = Math.round(Math.max(0, rawSpeed));
-            
-            document.getElementById('speed').innerText = s;
-            document.body.className = s > 2 ? "moving" : "";
-            
-            // Voice Threshold Logic (Every 10 KM/H)
-            const threshold = Math.floor(s / 10) * 10;
-            if (threshold > 0 && threshold !== lastSpokenSpeed && s >= threshold) {
-                speak(`${threshold} kilometers per hour`);
-                lastSpokenSpeed = threshold;
-            } else if (s === 0 && lastSpokenSpeed !== 0) {
-                lastSpokenSpeed = 0; // Reset when stopped
-            }
-
-            updateSounds(s);
-        }
-
-        function updateSounds(speed) {
-            if (!audioCtx) return;
-            const now = audioCtx.currentTime;
-            const baseFreq = 160 + (speed * 4);
-            
-            harmonics.forEach(h => {
-                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, now, 0.4);
-                let v = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 50), 0.4);
-                h.gain.gain.setTargetAtTime(v / h.ratio, now, 0.4);
-            });
-        }
-
-        function calculateSpeed(pos) {
-            const now = pos.timestamp;
-            if (lastPos && lastTime) {
-                const d = getDistance(lastPos.latitude, lastPos.longitude, pos.coords.latitude, pos.coords.longitude);
-                const t = (now - lastTime) / 3600000;
-                lastPos = pos.coords; lastTime = now;
-                return d / t;
-            }
-            lastPos = pos.coords; lastTime = now;
-            return 0;
-        }
-
-        function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371;
-            const dLat = (lat2-lat1) * Math.PI/180;
-            const dLon = (lon2-lon1) * Math.PI/180;
-            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        }
-
-        function updateMasterVol() {
-            if (masterGain) masterGain.gain.value = document.getElementById('volume').value;
-        }
-    </script>
-</body>
-</html>
+        o1.frequency.setValueAtTime(freq1, audioCtx.currentTime);
+        o2.frequency.setValueAtTime(freq2, audioCtx.currentTime);
+        
+        g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        
+        o1.connect(g).connect(audioCtx.destination);
+        o2.connect(g).connect(audioCtx.destination);
+        
+        o1.start(); o2.start();
+        o1.stop(audioCtx.currentTime + 0.4); o2.stop(audioCtx.currentTime + 0.4);
+    }
+    
+    // ... (rest of your existing code)
+</script>

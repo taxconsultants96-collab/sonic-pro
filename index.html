@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Siri EV Sonic</title>
+    <title>Siri EV Sonic + Voice</title>
     <style>
         :root { --glow: rgba(139, 92, 246, 0.6); --text: #f8fafc; }
         body { 
@@ -21,30 +21,30 @@
             display: flex; flex-direction: column; align-items: center;
             justify-content: center;
             box-shadow: 0 0 100px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255,255,255,0.05);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .moving .orb-container {
             box-shadow: 0 0 120px var(--glow);
-            transform: scale(1.02);
+            border: 1px solid rgba(139, 92, 246, 0.3);
         }
         #speed { 
             font-size: 100px; font-weight: 200; margin: 0; 
             letter-spacing: -2px; line-height: 1;
         }
-        #unit { font-size: 12px; letter-spacing: 4px; opacity: 0.5; margin-top: 10px; }
+        #unit { font-size: 10px; letter-spacing: 4px; opacity: 0.5; margin-top: 10px; }
         .controls {
-            position: absolute; bottom: -120px; width: 100%;
-            display: flex; flex-direction: column; gap: 15px;
+            position: absolute; bottom: -140px; width: 100%;
+            display: flex; flex-direction: column; gap: 12px;
         }
         .btn {
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-            color: white; padding: 12px; border-radius: 30px; cursor: pointer;
-            font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            color: white; padding: 14px; border-radius: 30px; cursor: pointer;
+            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
             transition: 0.2s;
         }
-        .btn:active { background: rgba(255,255,255,0.3); }
-        #status { font-size: 10px; opacity: 0.4; position: absolute; top: 40px; }
-        .slider-wrap { margin-top: 20px; width: 80%; }
+        .btn-active { background: var(--glow); border: none; }
+        #status { font-size: 9px; opacity: 0.4; position: absolute; top: 45px; letter-spacing: 1px; }
+        .slider-wrap { margin-top: 10px; }
         input[type=range] { width: 100%; accent-color: #a78bfa; opacity: 0.6; }
     </style>
 </head>
@@ -56,24 +56,25 @@
         <div id="unit">KM/H</div>
 
         <div class="controls">
-            <button class="btn" onclick="initEngine()">Initialize Aura</button>
+            <button id="startBtn" class="btn btn-active" onclick="initEngine()">Initialize Aura</button>
+            <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice Guidance: ON</button>
             <div class="slider-wrap">
                 <input type="range" id="volume" min="0" max="1.5" step="0.1" value="0.8" oninput="updateMasterVol()">
             </div>
-            <button class="btn" style="border:none; opacity:0.5" onclick="location.reload()">Reset</button>
         </div>
     </div>
 
     <script>
         let audioCtx, masterGain, harmonics = [], watchId;
-        let lastPos, lastTime;
+        let lastPos, lastTime, lastSpokenSpeed = 0;
+        let voiceEnabled = true;
 
         async function initEngine() {
             if (audioCtx) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Siri "Startup" Chime
             playSiriPop();
+            document.getElementById('startBtn').style.display = 'none';
 
             const compressor = audioCtx.createDynamicsCompressor();
             compressor.threshold.setValueAtTime(-15, audioCtx.currentTime);
@@ -83,7 +84,6 @@
             masterGain.gain.value = document.getElementById('volume').value;
             masterGain.connect(compressor);
 
-            // Create Harmonic Stack (The Siri Hum)
             const ratios = [1, 1.5, 2.0, 3.0];
             ratios.forEach(r => {
                 let osc = audioCtx.createOscillator();
@@ -96,6 +96,22 @@
 
             document.getElementById('status').innerText = "AURA ACTIVE";
             startGpsTracking();
+            speak("System initialized. Driving mode active.");
+        }
+
+        function toggleVoice() {
+            voiceEnabled = !voiceEnabled;
+            document.getElementById('voiceToggle').innerText = `Voice Guidance: ${voiceEnabled ? 'ON' : 'OFF'}`;
+        }
+
+        function speak(text) {
+            if (!voiceEnabled) return;
+            // Cancel any current speech to prevent overlapping
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.rate = 1.1; // Slightly faster for a modern feel
+            msg.pitch = 1.2; // Higher pitch for the Siri vibe
+            window.speechSynthesis.speak(msg);
         }
 
         function playSiriPop() {
@@ -117,29 +133,33 @@
         }
 
         function handleMotion(pos) {
-            const speed = pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos);
-            const s = Math.round(Math.max(0, speed));
+            const rawSpeed = pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos);
+            const s = Math.round(Math.max(0, rawSpeed));
             
             document.getElementById('speed').innerText = s;
-            document.getElementById('mainOrb').className = s > 1 ? "orb-container moving" : "orb-container";
+            document.body.className = s > 2 ? "moving" : "";
             
+            // Voice Threshold Logic (Every 10 KM/H)
+            const threshold = Math.floor(s / 10) * 10;
+            if (threshold > 0 && threshold !== lastSpokenSpeed && s >= threshold) {
+                speak(`${threshold} kilometers per hour`);
+                lastSpokenSpeed = threshold;
+            } else if (s === 0 && lastSpokenSpeed !== 0) {
+                lastSpokenSpeed = 0; // Reset when stopped
+            }
+
             updateSounds(s);
         }
 
         function updateSounds(speed) {
             if (!audioCtx) return;
             const now = audioCtx.currentTime;
-            
-            // Modern EVs have a base hum around 180Hz
-            const baseFreq = 180 + (speed * 4);
+            const baseFreq = 160 + (speed * 4);
             
             harmonics.forEach(h => {
-                // Smooth glide (0.3s) for the liquid feel
-                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, now, 0.3);
-                
-                // Volume becomes "brighter" (more harmonics) as you go faster
-                let v = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 60), 0.4);
-                h.gain.gain.setTargetAtTime(v / h.ratio, now, 0.3);
+                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, now, 0.4);
+                let v = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 50), 0.4);
+                h.gain.gain.setTargetAtTime(v / h.ratio, now, 0.4);
             });
         }
 

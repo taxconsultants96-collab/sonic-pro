@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Siri EV Sonic</title>
+    <title>Thor EV: Future Sonic</title>
     <style>
         :root { 
-            --glow: rgba(139, 92, 246, 0.6); 
-            --accent: #a78bfa;
+            --glow: rgba(0, 255, 255, 0.5); 
+            --accent: #22d3ee;
             --text: #f8fafc; 
             --bg-dark: #020617;
         }
@@ -16,57 +16,59 @@
         html, body { 
             height: 100%; width: 100%; margin: 0; padding: 0;
             overflow: hidden; display: flex; align-items: center; justify-content: center;
-            background: radial-gradient(circle at center, #1e1b4b 0%, var(--bg-dark) 100%);
+            background: #000;
             font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text);
         }
 
         .orb-container {
-            position: relative; width: 75vw; height: 75vw; max-width: 320px; max-height: 320px;
-            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 50%;
+            position: relative; width: 70vw; height: 70vw; max-width: 300px; max-height: 300px;
+            background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(34, 211, 238, 0.2); border-radius: 50%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5); transition: all 0.6s ease;
+            box-shadow: 0 0 80px rgba(0, 0, 0, 0.8); transition: all 0.3s ease;
             z-index: 10;
         }
 
-        body.moving .orb-container { box-shadow: 0 0 120px var(--glow); transform: scale(1.05); }
+        body.moving .orb-container { 
+            box-shadow: 0 0 100px var(--glow); 
+            border: 1px solid var(--accent);
+            transform: scale(1.02); 
+        }
 
-        #speed { font-size: 22vw; font-weight: 200; margin: 0; line-height: 1; }
-        #unit { font-size: 10px; letter-spacing: 4px; opacity: 0.4; }
-        #timer { font-size: 14px; margin-top: 10px; color: var(--accent); font-family: monospace; }
+        #speed { font-size: 20vw; font-weight: 100; margin: 0; color: var(--accent); }
+        #unit { font-size: 10px; letter-spacing: 5px; opacity: 0.5; }
+        #timer { font-size: 14px; margin-top: 10px; font-family: monospace; color: #64748b; }
 
-        /* Fixed scrolling controls to ensure nothing is hidden */
         .controls { 
-            position: absolute; bottom: 20px; width: 90%; max-width: 400px;
-            display: flex; flex-direction: column; gap: 8px; z-index: 20;
+            position: absolute; bottom: 30px; width: 85%; max-width: 350px;
+            display: flex; flex-direction: column; gap: 10px; z-index: 20;
         }
 
         .btn { 
-            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); 
-            color: white; padding: 12px; border-radius: 30px; cursor: pointer; 
-            font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); 
+            color: white; padding: 14px; border-radius: 12px; cursor: pointer; 
+            font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
         }
 
-        .btn-start { background: var(--accent); font-weight: bold; border: none; }
-        .btn-stop { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; }
-        .btn-mode { border: 1px solid var(--accent); color: var(--accent); background: rgba(167, 139, 250, 0.1); }
+        .btn-start { background: var(--accent); color: #000; font-weight: 800; border: none; }
+        .btn-stop { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; }
+        .btn-mode { border: 1px solid var(--accent); color: var(--accent); }
 
         #summaryOverlay { 
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(2, 6, 23, 0.98); z-index: 100; 
+            background: rgba(0,0,0,0.95); z-index: 100; 
             flex-direction: column; align-items: center; justify-content: center; 
-            text-align: center; backdrop-filter: blur(20px); 
         }
 
-        @media (min-width: 500px) { #speed { font-size: 90px; } }
+        input[type=range] { width: 100%; accent-color: var(--accent); margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <div id="summaryOverlay">
-        <h2 style="font-weight: 200; letter-spacing: 4px;">TRIP REPORT</h2>
+        <h2 style="letter-spacing: 10px; font-weight: 200;">MISSION LOG</h2>
         <div id="statsContent"></div>
-        <button class="btn" style="width: 180px; margin-top: 30px;" onclick="closeSummary()">Close</button>
+        <button class="btn" style="width: 200px; margin-top: 40px;" onclick="closeSummary()">Dismiss</button>
     </div>
 
     <div id="mainOrb" class="orb-container">
@@ -76,11 +78,11 @@
     </div>
 
     <div class="controls">
-        <button id="startBtn" class="btn btn-start" onclick="initEngine()">Initialize Aura</button>
+        <button id="startBtn" class="btn btn-start" onclick="initEngine()">Engage Systems</button>
         <button id="stopBtn" class="btn btn-stop" style="display:none" onclick="stopEngine()">Power Down</button>
-        <button id="modeBtn" class="btn btn-mode" onclick="cycleMode()">Engine: Aura</button>
-        <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice Guidance: ON</button>
-        <input type="range" id="volume" min="0" max="2.0" step="0.1" value="1.0" oninput="updateMasterVol()" style="width:100%; accent-color:var(--accent);">
+        <button id="modeBtn" class="btn btn-mode" onclick="cycleMode()">Sound: Future Car</button>
+        <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice: ON</button>
+        <input type="range" id="volume" min="0" max="2.0" step="0.1" value="1.0" oninput="updateMasterVol()">
     </div>
 
     <script>
@@ -88,11 +90,11 @@
         let lastPos, lastTime, lastSpokenSpeed = 0, voiceEnabled = true, isShuttingDown = false;
         let startTime, timerInterval, tripSpeeds = [], maxSpeed = 0;
         
-        let currentModeIndex = 0;
+        let currentModeIndex = 2; // Default to Warp/Future Car
         const modes = [
-            { name: "Aura", type: "sine", gainAdj: 1 },
-            { name: "Titan", type: "sawtooth", gainAdj: 0.4 },
-            { name: "Warp", type: "square", gainAdj: 0.3 }
+            { name: "Aura (Smooth)", type: "sine", detune: 0, gainAdj: 1 },
+            { name: "Titan (Deep)", type: "sawtooth", detune: 2, gainAdj: 0.3 },
+            { name: "Future Car", type: "triangle", detune: 5, gainAdj: 0.8 } // High detune for Thor vibe
         ];
 
         async function initEngine() {
@@ -112,22 +114,21 @@
             startTime = Date.now();
             timerInterval = setInterval(updateTimer, 1000);
             startGpsTracking();
-            speak("System online.");
+            speak("Systems engaged.");
         }
 
         function createHarmonics() {
-            // Clean up existing
             harmonics.forEach(h => { try { h.osc.stop(); } catch(e){} });
             harmonics = [];
-            
             const mode = modes[currentModeIndex];
-            const ratios = [1, 1.5, 2.0];
             
-            ratios.forEach(r => {
+            // Recreating Thor logic: 3 main tones + detuning for "vibration"
+            [1, 1.01, 2, 4].forEach((r, i) => {
                 let osc = audioCtx.createOscillator();
                 let g = audioCtx.createGain();
                 osc.type = mode.type;
-                g.gain.value = 0; // Start silent
+                osc.detune.value = i * mode.detune; // Thor detuning
+                g.gain.value = 0;
                 osc.connect(g).connect(masterGain);
                 osc.start();
                 harmonics.push({ osc, gain: g, ratio: r });
@@ -136,46 +137,38 @@
 
         function cycleMode() {
             currentModeIndex = (currentModeIndex + 1) % modes.length;
-            const mode = modes[currentModeIndex];
-            document.getElementById('modeBtn').innerText = `Engine: ${mode.name}`;
-            
+            document.getElementById('modeBtn').innerText = `Sound: ${modes[currentModeIndex].name}`;
             if (audioCtx) {
-                harmonics.forEach(h => { h.osc.type = mode.type; });
-                speak(mode.name);
+                createHarmonics();
+                speak(modes[currentModeIndex].name);
             }
         }
 
         function handleMotion(pos) {
             const s = Math.round(Math.max(0, pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos)));
             document.getElementById('speed').innerText = s;
-            
             if (s > 2) {
                 document.body.classList.add('moving');
                 tripSpeeds.push(s); if (s > maxSpeed) maxSpeed = s;
-            } else {
-                document.body.classList.remove('moving');
-            }
+            } else { document.body.classList.remove('moving'); }
 
-            // Voice Thresholds
             const threshold = Math.floor(s / 10) * 10;
             if (threshold > 0 && threshold !== lastSpokenSpeed && s >= threshold) {
                 speak(`${threshold}`); lastSpokenSpeed = threshold;
             } else if (s === 0) { lastSpokenSpeed = 0; }
-            
             updateSounds(s);
         }
 
         function updateSounds(speed) {
             if (!audioCtx || isShuttingDown) return;
             const mode = modes[currentModeIndex];
-            const baseFreq = 140 + (speed * 4);
+            const baseFreq = 80 + (speed * 3.5); // Lower base for Thor growl
             
             harmonics.forEach(h => {
                 const now = audioCtx.currentTime;
-                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, now, 0.3);
-                // Adjust volume based on speed and mode multiplier (prevent clipping)
-                let vol = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 60), 0.4);
-                h.gain.gain.setTargetAtTime(vol * mode.gainAdj, now, 0.3);
+                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, now, 0.2);
+                let vol = speed === 0 ? 0.05 : Math.min(0.08 + (speed / 70), 0.5);
+                h.gain.gain.setTargetAtTime(vol * mode.gainAdj, now, 0.2);
             });
         }
 
@@ -183,25 +176,18 @@
             if (!audioCtx || isShuttingDown) return;
             isShuttingDown = true;
             const now = audioCtx.currentTime;
-            
             harmonics.forEach(h => {
-                h.osc.frequency.exponentialRampToValueAtTime(40, now + 0.8);
-                h.gain.gain.linearRampToValueAtTime(0, now + 0.8);
+                h.osc.frequency.exponentialRampToValueAtTime(30, now + 1.2);
+                h.gain.gain.linearRampToValueAtTime(0, now + 1.2);
             });
             playSiriPop(false);
-
             setTimeout(() => {
                 if (watchId) navigator.geolocation.clearWatch(watchId);
                 clearInterval(timerInterval);
                 const avg = tripSpeeds.length > 0 ? Math.round(tripSpeeds.reduce((a,b)=>a+b)/tripSpeeds.length) : 0;
-                
                 audioCtx.close().then(() => {
                     audioCtx = null;
-                    document.getElementById('statsContent').innerHTML = `
-                        <p style="opacity:0.6">TOTAL TIME</p><h3>${document.getElementById('timer').innerText}</h3>
-                        <p style="opacity:0.6">AVG SPEED</p><h3>${avg} KM/H</h3>
-                        <p style="opacity:0.6">TOP SPEED</p><h3>${maxSpeed} KM/H</h3>
-                    `;
+                    document.getElementById('statsContent').innerHTML = `<h3>${document.getElementById('timer').innerText} Total</h3><h3>${avg} KM/H Avg</h3><h3>${maxSpeed} KM/H Max</h3>`;
                     document.getElementById('summaryOverlay').style.display = 'flex';
                     isShuttingDown = false;
                     document.getElementById('startBtn').style.display = 'block';
@@ -209,7 +195,7 @@
                     document.getElementById('speed').innerText = "0";
                     tripSpeeds = []; maxSpeed = 0;
                 });
-            }, 850);
+            }, 1200);
         }
 
         function updateTimer() {
@@ -222,12 +208,12 @@
         function playSiriPop(isStart) {
             if (!audioCtx) return;
             const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-            o.frequency.setValueAtTime(isStart ? 400 : 600, audioCtx.currentTime);
-            o.frequency.exponentialRampToValueAtTime(isStart ? 600 : 400, audioCtx.currentTime + 0.3);
+            o.frequency.setValueAtTime(isStart ? 200 : 400, audioCtx.currentTime);
+            o.frequency.exponentialRampToValueAtTime(isStart ? 400 : 100, audioCtx.currentTime + 0.5);
             g.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
             o.connect(g).connect(audioCtx.destination);
-            o.start(); o.stop(audioCtx.currentTime + 0.3);
+            o.start(); o.stop(audioCtx.currentTime + 0.5);
         }
 
         function calculateSpeed(pos) {
@@ -247,8 +233,8 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function toggleVoice() { voiceEnabled = !voiceEnabled; document.getElementById('voiceToggle').innerText = `Voice Guidance: ${voiceEnabled ? 'ON' : 'OFF'}`; }
-        function speak(t) { if (voiceEnabled) { window.speechSynthesis.cancel(); const m = new SpeechSynthesisUtterance(t); m.rate = 1.2; window.speechSynthesis.speak(m); } }
+        function toggleVoice() { voiceEnabled = !voiceEnabled; document.getElementById('voiceToggle').innerText = `Voice: ${voiceEnabled ? 'ON' : 'OFF'}`; }
+        function speak(t) { if (voiceEnabled) { window.speechSynthesis.cancel(); const m = new SpeechSynthesisUtterance(t); m.rate = 1.3; window.speechSynthesis.speak(m); } }
         function updateMasterVol() { if (masterGain) masterGain.gain.value = document.getElementById('volume').value; }
         function startGpsTracking() { watchId = navigator.geolocation.watchPosition(handleMotion, null, { enableHighAccuracy: true }); }
         function closeSummary() { document.getElementById('summaryOverlay').style.display = 'none'; }

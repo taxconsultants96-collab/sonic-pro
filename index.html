@@ -1,84 +1,284 @@
-<div class="controls">
-    <div id="actionRow" style="display: flex; gap: 10px;">
-        <button id="startBtn" class="btn btn-active" style="flex: 2;" onclick="initEngine()">Initialize Aura</button>
-        <button id="stopBtn" class="btn" style="flex: 1; display: none; background: rgba(239, 68, 68, 0.2); border-color: #ef4444;" onclick="stopEngine()">Off</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Siri EV Sonic</title>
+    <style>
+        :root { 
+            --glow: rgba(139, 92, 246, 0.6); 
+            --accent: #a78bfa;
+            --text: #f8fafc; 
+        }
+        
+        html, body { 
+            height: 100%; 
+            width: 100%; 
+            margin: 0; 
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: var(--text);
+        }
+
+        .orb-container {
+            position: relative; 
+            width: 80vw; 
+            height: 80vw;
+            max-width: 350px; 
+            max-height: 350px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body.moving .orb-container {
+            box-shadow: 0 0 120px var(--glow);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            transform: scale(1.05);
+        }
+
+        #speed { 
+            font-size: 25vw; 
+            font-weight: 200; 
+            margin: 0;
+            line-height: 1;
+            letter-spacing: -5px;
+            color: var(--text);
+            text-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+        
+        #unit { font-size: 12px; letter-spacing: 4px; opacity: 0.4; margin-top: 5px; }
+        #status { font-size: 9px; opacity: 0.3; position: absolute; top: 45px; letter-spacing: 2px; text-transform: uppercase; }
+
+        .controls {
+            position: absolute;
+            bottom: -150px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 16px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: 0.3s;
+        }
+
+        .btn-start { background: var(--accent); border: none; font-weight: bold; }
+        .btn-stop { background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #ef4444; }
+
+        .slider-wrap { width: 90%; margin: 10px auto; }
+        input[type=range] { width: 100%; accent-color: var(--accent); opacity: 0.7; }
+
+        @media (min-width: 500px) { #speed { font-size: 110px; } }
+    </style>
+</head>
+<body>
+
+    <div id="mainOrb" class="orb-container">
+        <div id="status">Ready</div>
+        <div id="speed">0</div>
+        <div id="unit">KM/H</div>
+
+        <div class="controls">
+            <button id="startBtn" class="btn btn-start" onclick="initEngine()">Initialize Aura</button>
+            <button id="stopBtn" class="btn btn-stop" style="display:none" onclick="stopEngine()">Power Down</button>
+            <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice: ON</button>
+            
+            <div class="slider-wrap">
+                <input type="range" id="volume" min="0" max="2.0" step="0.1" value="1.0" oninput="updateMasterVol()">
+            </div>
+        </div>
     </div>
-    <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice Guidance: ON</button>
-    <div class="slider-wrap">
-        <input type="range" id="volume" min="0" max="1.5" step="0.1" value="0.8" oninput="updateMasterVol()">
-    </div>
-</div>
 
-<script>
-    // ... (keep previous variables)
+    <script>
+        let audioCtx, masterGain, harmonics = [], watchId;
+        let lastPos, lastTime, lastSpokenSpeed = 0;
+        let voiceEnabled = true;
+        let isShuttingDown = false;
 
-    async function initEngine() {
-        if (audioCtx) return;
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        playSiriPop(true); // Startup sound
-        
-        // UI Updates
-        document.getElementById('startBtn').style.display = 'none';
-        document.getElementById('stopBtn').style.display = 'block';
+        async function initEngine() {
+            if (isShuttingDown || audioCtx) return;
 
-        // ... (rest of your existing init code)
-        
-        startGpsTracking();
-        speak("Aura system online.");
-    }
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            
+            playSiriPop(true);
 
-    function stopEngine() {
-        if (!audioCtx) return;
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'block';
 
-        const now = audioCtx.currentTime;
-        const duration = 0.8; // Seconds for the power-down effect
+            const compressor = audioCtx.createDynamicsCompressor();
+            compressor.threshold.setValueAtTime(-15, audioCtx.currentTime);
+            compressor.connect(audioCtx.destination);
 
-        // 1. "De-spool" effect: Slide pitch down and fade out
-        harmonics.forEach(h => {
-            h.osc.frequency.exponentialRampToValueAtTime(50, now + duration);
-            h.gain.gain.linearRampToValueAtTime(0, now + duration);
-        });
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = document.getElementById('volume').value;
+            masterGain.connect(compressor);
 
-        // 2. Play Power-down chime
-        playSiriPop(false); 
-
-        // 3. Clean up after the sound finishes
-        setTimeout(() => {
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            audioCtx.close().then(() => {
-                audioCtx = null;
-                harmonics = [];
-                document.getElementById('status').innerText = "SYSTEM OFFLINE";
-                document.getElementById('startBtn').style.display = 'block';
-                document.getElementById('stopBtn').style.display = 'none';
-                document.getElementById('speed').innerText = "0";
-                document.body.className = "";
+            const ratios = [1, 1.5, 2.0, 3.0];
+            harmonics = ratios.map(r => {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.connect(gain).connect(masterGain);
+                osc.start();
+                return { osc, gain, ratio: r };
             });
-        }, duration * 1000);
-    }
 
-    function playSiriPop(isStartup) {
-        const o1 = audioCtx.createOscillator();
-        const o2 = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        
-        // Startup is low to high, Shutdown is high to low
-        const freq1 = isStartup ? 480 : 600;
-        const freq2 = isStartup ? 600 : 480;
+            document.getElementById('status').innerText = "Aura Online";
+            startGpsTracking();
+            speak("Aura system online.");
+        }
 
-        o1.frequency.setValueAtTime(freq1, audioCtx.currentTime);
-        o2.frequency.setValueAtTime(freq2, audioCtx.currentTime);
-        
-        g.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-        
-        o1.connect(g).connect(audioCtx.destination);
-        o2.connect(g).connect(audioCtx.destination);
-        
-        o1.start(); o2.start();
-        o1.stop(audioCtx.currentTime + 0.4); o2.stop(audioCtx.currentTime + 0.4);
-    }
-    
-    // ... (rest of your existing code)
-</script>
+        function stopEngine() {
+            if (!audioCtx || isShuttingDown) return;
+            isShuttingDown = true;
+
+            const now = audioCtx.currentTime;
+            const duration = 0.8;
+
+            harmonics.forEach(h => {
+                h.osc.frequency.cancelScheduledValues(now);
+                h.osc.frequency.exponentialRampToValueAtTime(50, now + duration);
+                h.gain.gain.linearRampToValueAtTime(0, now + duration);
+            });
+
+            playSiriPop(false);
+
+            setTimeout(() => {
+                if (watchId) navigator.geolocation.clearWatch(watchId);
+                audioCtx.close().then(() => {
+                    audioCtx = null;
+                    harmonics = [];
+                    lastSpokenSpeed = 0;
+                    isShuttingDown = false;
+                    document.getElementById('status').innerText = "Offline";
+                    document.getElementById('startBtn').style.display = 'block';
+                    document.getElementById('stopBtn').style.display = 'none';
+                    document.getElementById('speed').innerText = "0";
+                    document.body.classList.remove('moving');
+                });
+            }, duration * 1000);
+        }
+
+        function playSiriPop(isStartup) {
+            if (!audioCtx) return;
+            const o1 = audioCtx.createOscillator();
+            const o2 = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            const f1 = isStartup ? 480 : 600;
+            const f2 = isStartup ? 600 : 480;
+
+            o1.frequency.setValueAtTime(f1, audioCtx.currentTime);
+            o2.frequency.setValueAtTime(f2, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            
+            o1.connect(g).connect(audioCtx.destination);
+            o2.connect(g).connect(audioCtx.destination);
+            o1.start(); o2.start();
+            o1.stop(audioCtx.currentTime + 0.4); o2.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function toggleVoice() {
+            voiceEnabled = !voiceEnabled;
+            document.getElementById('voiceToggle').innerText = `Voice: ${voiceEnabled ? 'ON' : 'OFF'}`;
+        }
+
+        function speak(text) {
+            if (!voiceEnabled) return;
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.rate = 1.1;
+            msg.pitch = 1.1;
+            window.speechSynthesis.speak(msg);
+        }
+
+        function startGpsTracking() {
+            watchId = navigator.geolocation.watchPosition(handleMotion, null, { enableHighAccuracy: true });
+        }
+
+        function handleMotion(pos) {
+            const speed = pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos);
+            const s = Math.round(Math.max(0, speed));
+            
+            document.getElementById('speed').innerText = s;
+            
+            if (s > 2) {
+                document.body.classList.add('moving');
+            } else {
+                document.body.classList.remove('moving');
+            }
+
+            const threshold = Math.floor(s / 10) * 10;
+            if (threshold > 0 && threshold !== lastSpokenSpeed && s >= threshold) {
+                speak(`${threshold} kilometers per hour`);
+                lastSpokenSpeed = threshold;
+            } else if (s === 0) {
+                lastSpokenSpeed = 0;
+            }
+
+            updateSounds(s);
+        }
+
+        function updateSounds(speed) {
+            if (!audioCtx || isShuttingDown) return;
+            const now = audioCtx.currentTime;
+            const baseFreq = 160 + (speed * 4);
+            harmonics.forEach(h => {
+                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, now, 0.4);
+                let v = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 50), 0.4);
+                h.gain.gain.setTargetAtTime(v / h.ratio, now, 0.4);
+            });
+        }
+
+        function calculateSpeed(pos) {
+            const now = pos.timestamp;
+            if (lastPos && lastTime) {
+                const d = getDistance(lastPos.latitude, lastPos.longitude, pos.coords.latitude, pos.coords.longitude);
+                const t = (now - lastTime) / 3600000;
+                lastPos = pos.coords; lastTime = now;
+                return d / t;
+            }
+            lastPos = pos.coords; lastTime = now;
+            return 0;
+        }
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2-lat1) * Math.PI/180;
+            const dLon = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        function updateMasterVol() {
+            if (masterGain) masterGain.gain.value = document.getElementById('volume').value;
+        }
+    </script>
+</body>
+</html>

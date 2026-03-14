@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Siri EV Sonic</title>
     <style>
         :root { 
@@ -22,49 +21,66 @@
         }
 
         .orb-container {
-            position: relative; width: 80vw; height: 80vw; max-width: 350px; max-height: 350px;
+            position: relative; width: 75vw; height: 75vw; max-width: 320px; max-height: 320px;
             background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
             border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 50%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5); transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5); transition: all 0.6s ease;
+            z-index: 10;
         }
 
-        body.moving .orb-container { box-shadow: 0 0 120px var(--glow); border: 1px solid rgba(139, 92, 246, 0.3); transform: scale(1.05); }
+        body.moving .orb-container { box-shadow: 0 0 120px var(--glow); transform: scale(1.05); }
 
-        #speed { font-size: 25vw; font-weight: 200; margin: 0; line-height: 1; letter-spacing: -5px; text-shadow: 0 0 20px rgba(255,255,255,0.2); }
-        #unit { font-size: 12px; letter-spacing: 4px; opacity: 0.4; margin-top: 5px; }
-        #timer { font-size: 16px; margin-top: 15px; color: var(--accent); font-family: monospace; }
+        #speed { font-size: 22vw; font-weight: 200; margin: 0; line-height: 1; }
+        #unit { font-size: 10px; letter-spacing: 4px; opacity: 0.4; }
+        #timer { font-size: 14px; margin-top: 10px; color: var(--accent); font-family: monospace; }
 
-        .controls { position: absolute; bottom: -180px; width: 100%; display: flex; flex-direction: column; gap: 10px; }
-        .btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 14px; border-radius: 40px; cursor: pointer; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; transition: 0.3s; }
-        .btn-start { background: var(--accent); border: none; font-weight: bold; }
-        .btn-stop { background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #ef4444; }
-        .btn-mode { border: 1px solid var(--accent); color: var(--accent); }
+        /* Fixed scrolling controls to ensure nothing is hidden */
+        .controls { 
+            position: absolute; bottom: 20px; width: 90%; max-width: 400px;
+            display: flex; flex-direction: column; gap: 8px; z-index: 20;
+        }
 
-        #summaryOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.98); z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; backdrop-filter: blur(20px); }
-        .stat-value { font-size: 28px; font-weight: 200; color: var(--accent); }
+        .btn { 
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); 
+            color: white; padding: 12px; border-radius: 30px; cursor: pointer; 
+            font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .btn-start { background: var(--accent); font-weight: bold; border: none; }
+        .btn-stop { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; }
+        .btn-mode { border: 1px solid var(--accent); color: var(--accent); background: rgba(167, 139, 250, 0.1); }
+
+        #summaryOverlay { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(2, 6, 23, 0.98); z-index: 100; 
+            flex-direction: column; align-items: center; justify-content: center; 
+            text-align: center; backdrop-filter: blur(20px); 
+        }
+
+        @media (min-width: 500px) { #speed { font-size: 90px; } }
     </style>
 </head>
 <body>
 
     <div id="summaryOverlay">
-        <h2 style="font-weight: 200; letter-spacing: 6px;">TRIP REPORT</h2>
+        <h2 style="font-weight: 200; letter-spacing: 4px;">TRIP REPORT</h2>
         <div id="statsContent"></div>
-        <button class="btn" style="width: 200px; margin-top: 40px; border: 1px solid var(--accent);" onclick="closeSummary()">Close</button>
+        <button class="btn" style="width: 180px; margin-top: 30px;" onclick="closeSummary()">Close</button>
     </div>
 
     <div id="mainOrb" class="orb-container">
         <div id="speed">0</div>
         <div id="unit">KM/H</div>
         <div id="timer">00:00</div>
+    </div>
 
-        <div class="controls">
-            <button id="startBtn" class="btn btn-start" onclick="initEngine()">Initialize Aura</button>
-            <button id="stopBtn" class="btn btn-stop" style="display:none" onclick="stopEngine()">Power Down</button>
-            <button id="modeBtn" class="btn btn-mode" onclick="cycleMode()">Sound: Aura</button>
-            <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice: ON</button>
-            <input type="range" id="volume" min="0" max="2.0" step="0.1" value="1.0" oninput="updateMasterVol()" style="width:90%; margin:auto; accent-color:var(--accent);">
-        </div>
+    <div class="controls">
+        <button id="startBtn" class="btn btn-start" onclick="initEngine()">Initialize Aura</button>
+        <button id="stopBtn" class="btn btn-stop" style="display:none" onclick="stopEngine()">Power Down</button>
+        <button id="modeBtn" class="btn btn-mode" onclick="cycleMode()">Engine: Aura</button>
+        <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice Guidance: ON</button>
+        <input type="range" id="volume" min="0" max="2.0" step="0.1" value="1.0" oninput="updateMasterVol()" style="width:100%; accent-color:var(--accent);">
     </div>
 
     <script>
@@ -72,12 +88,11 @@
         let lastPos, lastTime, lastSpokenSpeed = 0, voiceEnabled = true, isShuttingDown = false;
         let startTime, timerInterval, tripSpeeds = [], maxSpeed = 0;
         
-        // Sound Options
         let currentModeIndex = 0;
         const modes = [
-            { name: "Aura", type: "sine", multi: 1 },
-            { name: "Titan", type: "sawtooth", multi: 0.5 },
-            { name: "Warp", type: "square", multi: 0.8 }
+            { name: "Aura", type: "sine", gainAdj: 1 },
+            { name: "Titan", type: "sawtooth", gainAdj: 0.4 },
+            { name: "Warp", type: "square", gainAdj: 0.3 }
         ];
 
         async function initEngine() {
@@ -89,12 +104,9 @@
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'block';
 
-            const compressor = audioCtx.createDynamicsCompressor();
-            compressor.connect(audioCtx.destination);
-
             masterGain = audioCtx.createGain();
             masterGain.gain.value = document.getElementById('volume').value;
-            masterGain.connect(compressor);
+            masterGain.connect(audioCtx.destination);
 
             createHarmonics();
             startTime = Date.now();
@@ -104,39 +116,76 @@
         }
 
         function createHarmonics() {
-            harmonics.forEach(h => h.osc.stop());
+            // Clean up existing
+            harmonics.forEach(h => { try { h.osc.stop(); } catch(e){} });
             harmonics = [];
-            const ratios = [1, 1.5, 2.0];
+            
             const mode = modes[currentModeIndex];
+            const ratios = [1, 1.5, 2.0];
             
             ratios.forEach(r => {
                 let osc = audioCtx.createOscillator();
-                let gain = audioCtx.createGain();
+                let g = audioCtx.createGain();
                 osc.type = mode.type;
-                osc.connect(gain).connect(masterGain);
+                g.gain.value = 0; // Start silent
+                osc.connect(g).connect(masterGain);
                 osc.start();
-                harmonics.push({ osc, gain, ratio: r });
+                harmonics.push({ osc, gain: g, ratio: r });
             });
         }
 
         function cycleMode() {
             currentModeIndex = (currentModeIndex + 1) % modes.length;
-            document.getElementById('modeBtn').innerText = `Sound: ${modes[currentModeIndex].name}`;
+            const mode = modes[currentModeIndex];
+            document.getElementById('modeBtn').innerText = `Engine: ${mode.name}`;
+            
             if (audioCtx) {
-                const now = audioCtx.currentTime;
-                harmonics.forEach(h => { h.osc.type = modes[currentModeIndex].type; });
-                speak(modes[currentModeIndex].name);
+                harmonics.forEach(h => { h.osc.type = mode.type; });
+                speak(mode.name);
             }
+        }
+
+        function handleMotion(pos) {
+            const s = Math.round(Math.max(0, pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos)));
+            document.getElementById('speed').innerText = s;
+            
+            if (s > 2) {
+                document.body.classList.add('moving');
+                tripSpeeds.push(s); if (s > maxSpeed) maxSpeed = s;
+            } else {
+                document.body.classList.remove('moving');
+            }
+
+            // Voice Thresholds
+            const threshold = Math.floor(s / 10) * 10;
+            if (threshold > 0 && threshold !== lastSpokenSpeed && s >= threshold) {
+                speak(`${threshold}`); lastSpokenSpeed = threshold;
+            } else if (s === 0) { lastSpokenSpeed = 0; }
+            
+            updateSounds(s);
+        }
+
+        function updateSounds(speed) {
+            if (!audioCtx || isShuttingDown) return;
+            const mode = modes[currentModeIndex];
+            const baseFreq = 140 + (speed * 4);
+            
+            harmonics.forEach(h => {
+                const now = audioCtx.currentTime;
+                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, now, 0.3);
+                // Adjust volume based on speed and mode multiplier (prevent clipping)
+                let vol = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 60), 0.4);
+                h.gain.gain.setTargetAtTime(vol * mode.gainAdj, now, 0.3);
+            });
         }
 
         function stopEngine() {
             if (!audioCtx || isShuttingDown) return;
             isShuttingDown = true;
             const now = audioCtx.currentTime;
-            const avgSpeed = tripSpeeds.length > 0 ? Math.round(tripSpeeds.reduce((a, b) => a + b) / tripSpeeds.length) : 0;
             
             harmonics.forEach(h => {
-                h.osc.frequency.exponentialRampToValueAtTime(50, now + 0.8);
+                h.osc.frequency.exponentialRampToValueAtTime(40, now + 0.8);
                 h.gain.gain.linearRampToValueAtTime(0, now + 0.8);
             });
             playSiriPop(false);
@@ -144,18 +193,23 @@
             setTimeout(() => {
                 if (watchId) navigator.geolocation.clearWatch(watchId);
                 clearInterval(timerInterval);
+                const avg = tripSpeeds.length > 0 ? Math.round(tripSpeeds.reduce((a,b)=>a+b)/tripSpeeds.length) : 0;
+                
                 audioCtx.close().then(() => {
                     audioCtx = null;
-                    document.getElementById('statsContent').innerHTML = `<p>Time: ${document.getElementById('timer').innerText}</p><p class="stat-value">${avgSpeed} KM/H Avg</p><p class="stat-value">${maxSpeed} KM/H Top</p>`;
+                    document.getElementById('statsContent').innerHTML = `
+                        <p style="opacity:0.6">TOTAL TIME</p><h3>${document.getElementById('timer').innerText}</h3>
+                        <p style="opacity:0.6">AVG SPEED</p><h3>${avg} KM/H</h3>
+                        <p style="opacity:0.6">TOP SPEED</p><h3>${maxSpeed} KM/H</h3>
+                    `;
                     document.getElementById('summaryOverlay').style.display = 'flex';
                     isShuttingDown = false;
                     document.getElementById('startBtn').style.display = 'block';
                     document.getElementById('stopBtn').style.display = 'none';
                     document.getElementById('speed').innerText = "0";
-                    document.body.classList.remove('moving');
                     tripSpeeds = []; maxSpeed = 0;
                 });
-            }, 800);
+            }, 850);
         }
 
         function updateTimer() {
@@ -165,39 +219,15 @@
             document.getElementById('timer').innerText = `${m}:${s}`;
         }
 
-        function handleMotion(pos) {
-            const s = Math.round(Math.max(0, pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos)));
-            document.getElementById('speed').innerText = s;
-            if (s > 2) {
-                document.body.classList.add('moving');
-                tripSpeeds.push(s); if (s > maxSpeed) maxSpeed = s;
-            } else { document.body.classList.remove('moving'); }
-
-            const threshold = Math.floor(s / 10) * 10;
-            if (threshold > 0 && threshold !== lastSpokenSpeed && s >= threshold) {
-                speak(`${threshold}`); lastSpokenSpeed = threshold;
-            } else if (s === 0) { lastSpokenSpeed = 0; }
-            updateSounds(s);
-        }
-
-        function updateSounds(speed) {
-            if (!audioCtx || isShuttingDown) return;
-            const mode = modes[currentModeIndex];
-            const baseFreq = (160 + (speed * 4)) * mode.multi;
-            harmonics.forEach(h => {
-                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, audioCtx.currentTime, 0.4);
-                let v = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 50), 0.3);
-                h.gain.gain.setTargetAtTime(v / h.ratio, audioCtx.currentTime, 0.4);
-            });
-        }
-
         function playSiriPop(isStart) {
             if (!audioCtx) return;
-            const o1 = audioCtx.createOscillator(), g = audioCtx.createGain();
-            o1.frequency.setValueAtTime(isStart ? 480 : 600, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-            o1.connect(g).connect(audioCtx.destination);
-            o1.start(); o1.stop(audioCtx.currentTime + 0.4);
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.frequency.setValueAtTime(isStart ? 400 : 600, audioCtx.currentTime);
+            o.frequency.exponentialRampToValueAtTime(isStart ? 600 : 400, audioCtx.currentTime + 0.3);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            o.connect(g).connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + 0.3);
         }
 
         function calculateSpeed(pos) {
@@ -217,7 +247,7 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        function toggleVoice() { voiceEnabled = !voiceEnabled; document.getElementById('voiceToggle').innerText = `Voice: ${voiceEnabled ? 'ON' : 'OFF'}`; }
+        function toggleVoice() { voiceEnabled = !voiceEnabled; document.getElementById('voiceToggle').innerText = `Voice Guidance: ${voiceEnabled ? 'ON' : 'OFF'}`; }
         function speak(t) { if (voiceEnabled) { window.speechSynthesis.cancel(); const m = new SpeechSynthesisUtterance(t); m.rate = 1.2; window.speechSynthesis.speak(m); } }
         function updateMasterVol() { if (masterGain) masterGain.gain.value = document.getElementById('volume').value; }
         function startGpsTracking() { watchId = navigator.geolocation.watchPosition(handleMotion, null, { enableHighAccuracy: true }); }

@@ -15,121 +15,45 @@
         }
         
         html, body { 
-            height: 100%; 
-            width: 100%; 
-            margin: 0; 
-            padding: 0;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            height: 100%; width: 100%; margin: 0; padding: 0;
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
             background: radial-gradient(circle at center, #1e1b4b 0%, var(--bg-dark) 100%);
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text);
         }
 
-        /* The Main Siri Orb */
         .orb-container {
-            position: relative; 
-            width: 80vw; 
-            height: 80vw;
-            max-width: 350px; 
-            max-height: 350px;
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5);
-            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 10;
+            position: relative; width: 80vw; height: 80vw; max-width: 350px; max-height: 350px;
+            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 50%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: 0 0 100px rgba(0, 0, 0, 0.5); transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        body.moving .orb-container {
-            box-shadow: 0 0 120px var(--glow);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            transform: scale(1.05);
-        }
+        body.moving .orb-container { box-shadow: 0 0 120px var(--glow); border: 1px solid rgba(139, 92, 246, 0.3); transform: scale(1.05); }
 
-        #speed { 
-            font-size: 25vw; 
-            font-weight: 200; 
-            margin: 0;
-            line-height: 1;
-            letter-spacing: -5px;
-            color: var(--text);
-            text-shadow: 0 0 20px rgba(255,255,255,0.2);
-        }
-        
+        #speed { font-size: 25vw; font-weight: 200; margin: 0; line-height: 1; letter-spacing: -5px; text-shadow: 0 0 20px rgba(255,255,255,0.2); }
         #unit { font-size: 12px; letter-spacing: 4px; opacity: 0.4; margin-top: 5px; }
-        #status { font-size: 9px; opacity: 0.3; position: absolute; top: 45px; letter-spacing: 2px; text-transform: uppercase; }
-        #timer { font-size: 16px; font-weight: 300; margin-top: 15px; letter-spacing: 2px; color: var(--accent); font-family: monospace; }
+        #timer { font-size: 16px; margin-top: 15px; color: var(--accent); font-family: monospace; }
 
-        /* Controls Area */
-        .controls {
-            position: absolute;
-            bottom: -160px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .btn {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            padding: 16px;
-            border-radius: 40px;
-            cursor: pointer;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            transition: 0.3s;
-        }
-
+        .controls { position: absolute; bottom: -180px; width: 100%; display: flex; flex-direction: column; gap: 10px; }
+        .btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 14px; border-radius: 40px; cursor: pointer; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; transition: 0.3s; }
         .btn-start { background: var(--accent); border: none; font-weight: bold; }
         .btn-stop { background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #ef4444; }
+        .btn-mode { border: 1px solid var(--accent); color: var(--accent); }
 
-        .slider-wrap { width: 90%; margin: 5px auto; }
-        input[type=range] { width: 100%; accent-color: var(--accent); opacity: 0.7; }
-
-        /* Summary Overlay */
-        #summaryOverlay {
-            display: none; 
-            position: fixed; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            background: rgba(2, 6, 23, 0.98); 
-            z-index: 100; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            text-align: center; 
-            backdrop-filter: blur(20px);
-        }
-
-        #statsContent p { margin: 5px 0; }
-        .stat-label { font-size: 11px; opacity: 0.5; letter-spacing: 2px; text-transform: uppercase; margin-top: 15px !important; }
+        #summaryOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.98); z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; backdrop-filter: blur(20px); }
         .stat-value { font-size: 28px; font-weight: 200; color: var(--accent); }
-
-        @media (min-width: 500px) { #speed { font-size: 110px; } }
     </style>
 </head>
 <body>
 
     <div id="summaryOverlay">
-        <h2 style="font-weight: 200; letter-spacing: 6px; margin-bottom: 30px;">TRIP REPORT</h2>
+        <h2 style="font-weight: 200; letter-spacing: 6px;">TRIP REPORT</h2>
         <div id="statsContent"></div>
-        <button class="btn" style="width: 200px; margin-top: 40px; border: 1px solid var(--accent);" onclick="closeSummary()">Close Report</button>
+        <button class="btn" style="width: 200px; margin-top: 40px; border: 1px solid var(--accent);" onclick="closeSummary()">Close</button>
     </div>
 
     <div id="mainOrb" class="orb-container">
-        <div id="status">System Offline</div>
         <div id="speed">0</div>
         <div id="unit">KM/H</div>
         <div id="timer">00:00</div>
@@ -137,112 +61,101 @@
         <div class="controls">
             <button id="startBtn" class="btn btn-start" onclick="initEngine()">Initialize Aura</button>
             <button id="stopBtn" class="btn btn-stop" style="display:none" onclick="stopEngine()">Power Down</button>
-            <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice Guidance: ON</button>
-            
-            <div class="slider-wrap">
-                <input type="range" id="volume" min="0" max="2.0" step="0.1" value="1.0" oninput="updateMasterVol()">
-            </div>
+            <button id="modeBtn" class="btn btn-mode" onclick="cycleMode()">Sound: Aura</button>
+            <button id="voiceToggle" class="btn" onclick="toggleVoice()">Voice: ON</button>
+            <input type="range" id="volume" min="0" max="2.0" step="0.1" value="1.0" oninput="updateMasterVol()" style="width:90%; margin:auto; accent-color:var(--accent);">
         </div>
     </div>
 
     <script>
         let audioCtx, masterGain, harmonics = [], watchId;
-        let lastPos, lastTime, lastSpokenSpeed = 0;
-        let voiceEnabled = true, isShuttingDown = false;
-        
-        // Trip Stats
+        let lastPos, lastTime, lastSpokenSpeed = 0, voiceEnabled = true, isShuttingDown = false;
         let startTime, timerInterval, tripSpeeds = [], maxSpeed = 0;
+        
+        // Sound Options
+        let currentModeIndex = 0;
+        const modes = [
+            { name: "Aura", type: "sine", multi: 1 },
+            { name: "Titan", type: "sawtooth", multi: 0.5 },
+            { name: "Warp", type: "square", multi: 0.8 }
+        ];
 
         async function initEngine() {
             if (isShuttingDown || audioCtx) return;
-            
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') await audioCtx.resume();
             
             playSiriPop(true);
-
-            // UI Setup
             document.getElementById('startBtn').style.display = 'none';
             document.getElementById('stopBtn').style.display = 'block';
-            document.getElementById('status').innerText = "Aura Active";
-            
-            // Audio Nodes
+
             const compressor = audioCtx.createDynamicsCompressor();
-            compressor.threshold.setValueAtTime(-15, audioCtx.currentTime);
             compressor.connect(audioCtx.destination);
 
             masterGain = audioCtx.createGain();
             masterGain.gain.value = document.getElementById('volume').value;
             masterGain.connect(compressor);
 
-            const ratios = [1, 1.5, 2.0, 3.0];
-            harmonics = ratios.map(r => {
-                let osc = audioCtx.createOscillator();
-                let gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.connect(gain).connect(masterGain);
-                osc.start();
-                return { osc, gain, ratio: r };
-            });
-
-            // Start Services
+            createHarmonics();
             startTime = Date.now();
             timerInterval = setInterval(updateTimer, 1000);
             startGpsTracking();
-            speak("Aura system online.");
+            speak("System online.");
+        }
+
+        function createHarmonics() {
+            harmonics.forEach(h => h.osc.stop());
+            harmonics = [];
+            const ratios = [1, 1.5, 2.0];
+            const mode = modes[currentModeIndex];
+            
+            ratios.forEach(r => {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = mode.type;
+                osc.connect(gain).connect(masterGain);
+                osc.start();
+                harmonics.push({ osc, gain, ratio: r });
+            });
+        }
+
+        function cycleMode() {
+            currentModeIndex = (currentModeIndex + 1) % modes.length;
+            document.getElementById('modeBtn').innerText = `Sound: ${modes[currentModeIndex].name}`;
+            if (audioCtx) {
+                const now = audioCtx.currentTime;
+                harmonics.forEach(h => { h.osc.type = modes[currentModeIndex].type; });
+                speak(modes[currentModeIndex].name);
+            }
         }
 
         function stopEngine() {
             if (!audioCtx || isShuttingDown) return;
             isShuttingDown = true;
-
             const now = audioCtx.currentTime;
-            const duration = 0.8;
-
-            // Stats Calculation
             const avgSpeed = tripSpeeds.length > 0 ? Math.round(tripSpeeds.reduce((a, b) => a + b) / tripSpeeds.length) : 0;
-            const totalTime = document.getElementById('timer').innerText;
-
-            // Audio De-spool
+            
             harmonics.forEach(h => {
-                h.osc.frequency.cancelScheduledValues(now);
-                h.osc.frequency.exponentialRampToValueAtTime(50, now + duration);
-                h.gain.gain.linearRampToValueAtTime(0, now + duration);
+                h.osc.frequency.exponentialRampToValueAtTime(50, now + 0.8);
+                h.gain.gain.linearRampToValueAtTime(0, now + 0.8);
             });
             playSiriPop(false);
 
             setTimeout(() => {
                 if (watchId) navigator.geolocation.clearWatch(watchId);
                 clearInterval(timerInterval);
-                
                 audioCtx.close().then(() => {
                     audioCtx = null;
-                    harmonics = [];
-                    lastSpokenSpeed = 0;
-                    
-                    // Show Summary
-                    document.getElementById('statsContent').innerHTML = `
-                        <p class="stat-label">Total Duration</p>
-                        <p class="stat-value">${totalTime}</p>
-                        <p class="stat-label">Average Pace</p>
-                        <p class="stat-value">${avgSpeed} <span style="font-size:12px">KM/H</span></p>
-                        <p class="stat-label">Max Speed</p>
-                        <p class="stat-value">${maxSpeed} <span style="font-size:12px">KM/H</span></p>
-                    `;
+                    document.getElementById('statsContent').innerHTML = `<p>Time: ${document.getElementById('timer').innerText}</p><p class="stat-value">${avgSpeed} KM/H Avg</p><p class="stat-value">${maxSpeed} KM/H Top</p>`;
                     document.getElementById('summaryOverlay').style.display = 'flex';
-                    
-                    // Reset UI
                     isShuttingDown = false;
-                    document.getElementById('status').innerText = "System Offline";
                     document.getElementById('startBtn').style.display = 'block';
                     document.getElementById('stopBtn').style.display = 'none';
                     document.getElementById('speed').innerText = "0";
-                    document.getElementById('timer').innerText = "00:00";
                     document.body.classList.remove('moving');
-                    tripSpeeds = [];
-                    maxSpeed = 0;
+                    tripSpeeds = []; maxSpeed = 0;
                 });
-            }, duration * 1000);
+            }, 800);
         }
 
         function updateTimer() {
@@ -253,49 +166,38 @@
         }
 
         function handleMotion(pos) {
-            const rawSpeed = pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos);
-            const s = Math.round(Math.max(0, rawSpeed));
-            
+            const s = Math.round(Math.max(0, pos.coords.speed ? pos.coords.speed * 3.6 : calculateSpeed(pos)));
             document.getElementById('speed').innerText = s;
-            
             if (s > 2) {
                 document.body.classList.add('moving');
-                tripSpeeds.push(s);
-                if (s > maxSpeed) maxSpeed = s;
-            } else {
-                document.body.classList.remove('moving');
-            }
+                tripSpeeds.push(s); if (s > maxSpeed) maxSpeed = s;
+            } else { document.body.classList.remove('moving'); }
 
-            // Voice logic (Every 10 units)
             const threshold = Math.floor(s / 10) * 10;
             if (threshold > 0 && threshold !== lastSpokenSpeed && s >= threshold) {
-                speak(`${threshold}`);
-                lastSpokenSpeed = threshold;
+                speak(`${threshold}`); lastSpokenSpeed = threshold;
             } else if (s === 0) { lastSpokenSpeed = 0; }
-
             updateSounds(s);
         }
 
         function updateSounds(speed) {
             if (!audioCtx || isShuttingDown) return;
-            const now = audioCtx.currentTime;
-            const baseFreq = 160 + (speed * 4);
+            const mode = modes[currentModeIndex];
+            const baseFreq = (160 + (speed * 4)) * mode.multi;
             harmonics.forEach(h => {
-                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, now, 0.4);
-                let v = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 50), 0.4);
-                h.gain.gain.setTargetAtTime(v / h.ratio, now, 0.4);
+                h.osc.frequency.setTargetAtTime(baseFreq * h.ratio, audioCtx.currentTime, 0.4);
+                let v = speed === 0 ? 0.05 : Math.min(0.1 + (speed / 50), 0.3);
+                h.gain.gain.setTargetAtTime(v / h.ratio, audioCtx.currentTime, 0.4);
             });
         }
 
-        function playSiriPop(isStartup) {
+        function playSiriPop(isStart) {
             if (!audioCtx) return;
-            const o1 = audioCtx.createOscillator(), o2 = audioCtx.createOscillator(), g = audioCtx.createGain();
-            o1.frequency.setValueAtTime(isStartup ? 480 : 600, audioCtx.currentTime);
-            o2.frequency.setValueAtTime(isStartup ? 600 : 480, audioCtx.currentTime);
-            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            const o1 = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o1.frequency.setValueAtTime(isStart ? 480 : 600, audioCtx.currentTime);
             g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-            o1.connect(g).connect(audioCtx.destination); o2.connect(g).connect(audioCtx.destination);
-            o1.start(); o2.start(); o1.stop(audioCtx.currentTime + 0.4); o2.stop(audioCtx.currentTime + 0.4);
+            o1.connect(g).connect(audioCtx.destination);
+            o1.start(); o1.stop(audioCtx.currentTime + 0.4);
         }
 
         function calculateSpeed(pos) {
@@ -303,8 +205,7 @@
             if (lastPos && lastTime) {
                 const d = getDistance(lastPos.latitude, lastPos.longitude, pos.coords.latitude, pos.coords.longitude);
                 const t = (now - lastTime) / 3600000;
-                lastPos = pos.coords; lastTime = now;
-                return d / t;
+                lastPos = pos.coords; lastTime = now; return d / t;
             }
             lastPos = pos.coords; lastTime = now; return 0;
         }
@@ -317,7 +218,7 @@
         }
 
         function toggleVoice() { voiceEnabled = !voiceEnabled; document.getElementById('voiceToggle').innerText = `Voice: ${voiceEnabled ? 'ON' : 'OFF'}`; }
-        function speak(text) { if (!voiceEnabled) return; window.speechSynthesis.cancel(); const msg = new SpeechSynthesisUtterance(text); msg.rate = 1.2; window.speechSynthesis.speak(msg); }
+        function speak(t) { if (voiceEnabled) { window.speechSynthesis.cancel(); const m = new SpeechSynthesisUtterance(t); m.rate = 1.2; window.speechSynthesis.speak(m); } }
         function updateMasterVol() { if (masterGain) masterGain.gain.value = document.getElementById('volume').value; }
         function startGpsTracking() { watchId = navigator.geolocation.watchPosition(handleMotion, null, { enableHighAccuracy: true }); }
         function closeSummary() { document.getElementById('summaryOverlay').style.display = 'none'; }
